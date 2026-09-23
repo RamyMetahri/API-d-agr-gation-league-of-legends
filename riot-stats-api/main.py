@@ -28,6 +28,7 @@ from database import (
     get_puuid_en_base,
     get_rangs_joueur,
     get_stats_joueur,
+    get_totaux_par_champion,
     marquer_a_jour,
     matchs_existants,
     rechercher_joueurs,
@@ -39,6 +40,7 @@ from database import (
 )
 from match_resume import resumer_match
 from rate_limit import LimiteurRequetes
+from stats_champions import resumer_champion
 
 
 @asynccontextmanager
@@ -226,6 +228,16 @@ def stats_joueur(pseudo: str, tag: str, limite: int = Query(15, ge=1, le=50), qu
         rafraichir_joueur(puuid, count=15)
 
     return get_stats_joueur(puuid, limite=limite, queue_id=queue_id)
+
+
+@app.get("/joueur/{pseudo}/{tag}/champions", dependencies=LIMITE)
+def stats_par_champion(pseudo: str, tag: str, queue_id: int = None):
+    """
+    Statistiques par champion (parties, winrate, KDA, CS/min) sur toutes les parties en base.
+    Lecture en base uniquement : aucun appel Riot hormis la recherche du joueur.
+    """
+    puuid = get_puuid(pseudo, tag)
+    return {"champions": [resumer_champion(t) for t in get_totaux_par_champion(puuid, queue_id=queue_id)]}
 
 
 @app.get("/joueur/{pseudo}/{tag}/rang", dependencies=LIMITE)

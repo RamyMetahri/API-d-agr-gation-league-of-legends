@@ -294,6 +294,44 @@ def get_historique_joueur(puuid: str, queue_id: int = None, limite: int = 20):
 
     return [dict(zip(colonnes, ligne)) for ligne in lignes]
 
+def get_totaux_par_champion(puuid: str, queue_id: int = None) -> list[dict]:
+    """
+    Totaux par champion sur toutes les parties du joueur en base (plus joués en premier).
+    queue_id optionnel : filtre sur un mode de jeu précis.
+    """
+    conn = get_connection()
+    cur = conn.cursor()
+
+    requete = """
+        SELECT
+            p.champion_name AS champion,
+            COUNT(*) AS parties,
+            SUM(CASE WHEN p.win THEN 1 ELSE 0 END) AS victoires,
+            SUM(p.kills) AS kills,
+            SUM(p.deaths) AS deaths,
+            SUM(p.assists) AS assists,
+            SUM(p.total_minions_killed + COALESCE(p.neutral_minions_killed, 0)) AS cs,
+            SUM(m.game_duration) AS duree_secondes
+        FROM participations p
+        JOIN matchs m ON m.match_id = p.match_id
+        WHERE p.puuid = %s
+    """
+    params = [puuid]
+
+    if queue_id is not None:
+        requete += " AND m.queue_id = %s"
+        params.append(queue_id)
+
+    requete += " GROUP BY p.champion_name ORDER BY parties DESC, victoires DESC, champion;"
+
+    cur.execute(requete, tuple(params))
+    colonnes = [desc[0] for desc in cur.description]
+    lignes = cur.fetchall()
+    cur.close()
+    conn.close()
+    return [dict(zip(colonnes, ligne)) for ligne in lignes]
+
+
 def get_stats_joueur(puuid: str, limite: int = 15, queue_id: int = None):
     conn = get_connection()
     cur = conn.cursor()

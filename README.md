@@ -14,6 +14,7 @@ L'API agrège les données de l'API officielle Riot Games et les met en cache da
 - Rang Solo/Duo et Flex avec emblèmes
 - Winrate, KDA moyen et champion favori sur les 15 dernières parties, filtrables par mode de jeu
 - Historique des parties (champion, KDA, CS/min, gold)
+- **Stats par champion** : parties, winrate, KDA et CS/min de chaque champion joué, calculés en SQL sur toutes les parties en base
 - **Détail d'un match** : les 10 joueurs avec items, sorts, runes, dégâts, vision et objectifs d'équipe. Un clic sur un pseudo ouvre son profil.
 
 ## Architecture
@@ -28,7 +29,7 @@ flowchart LR
 
 | Dossier | Contenu |
 |---|---|
-| [`riot-stats-api/`](riot-stats-api) | API FastAPI : `main.py` (routes), `riot_client.py` (appels Riot), `database.py` (PostgreSQL), `match_resume.py` (mise en forme d'un match), `rate_limit.py` |
+| [`riot-stats-api/`](riot-stats-api) | API FastAPI : `main.py` (routes), `riot_client.py` (appels Riot), `database.py` (PostgreSQL), `match_resume.py` (mise en forme d'un match), `stats_champions.py`, `rate_limit.py` |
 | [`riot-stats-front/`](riot-stats-front) | Front React : `App.jsx` et `src/components/` |
 
 ## Choix techniques
@@ -40,7 +41,7 @@ flowchart LR
   - La plateforme (`euw1`, `na1`…) est validée par liste blanche : elle sert à construire l'URL appelée avec la clé.
   - Un limiteur de requêtes par IP protège le quota.
   - Le CORS est configurable.
-- **Tests.** 27 tests pytest sans réseau ni base, où Riot et PostgreSQL sont remplacés par des faux. La CI GitHub Actions lance les tests, le lint et le build du front, et construit l'image Docker.
+- **Tests.** 31 tests pytest sans réseau ni base, où Riot et PostgreSQL sont remplacés par des faux. La CI GitHub Actions lance les tests, le lint et le build du front, et construit l'image Docker.
 
 ## Lancer en local
 

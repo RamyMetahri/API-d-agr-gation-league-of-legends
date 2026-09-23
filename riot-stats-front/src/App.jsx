@@ -2,6 +2,7 @@ import { useState } from "react";
 import { lireJson, urlJoueur } from "./api";
 import { useDdragon } from "./ddragon";
 import { formatDerniereMaj } from "./format";
+import ChampionStats from "./components/ChampionStats";
 import MatchList from "./components/MatchList";
 import RankCard from "./components/RankCard";
 import SearchBar from "./components/SearchBar";
@@ -19,6 +20,7 @@ function App() {
   const [stats, setStats] = useState(null);
   const [historique, setHistorique] = useState(null);
   const [rangs, setRangs] = useState(null);
+  const [champions, setChampions] = useState(null);
   const [derniereMaj, setDerniereMaj] = useState(null);
   const [chargement, setChargement] = useState(false);
   const [actualisation, setActualisation] = useState(false);
@@ -29,6 +31,7 @@ function App() {
     setStats(null);
     setHistorique(null);
     setRangs(null);
+    setChampions(null);
     setDerniereMaj(null);
     setErreur(null);
     setPseudo("");
@@ -55,17 +58,19 @@ function App() {
       const base = urlJoueur(pseudoRecherche, tagRecherche);
 
       // /stats d'abord : c'est lui qui déclenche la synchro avec Riot si les données sont anciennes.
-      // Les 3 autres lisent ensuite la base à jour (et le PUUID déjà connu), en parallèle.
+      // Les autres lisent ensuite la base à jour (et le PUUID déjà connu), en parallèle.
       const dataStats = await lireJson(await fetch(`${base}/stats?limite=15${suffixeMode}`));
-      const [dataHistorique, dataRangs, dataMaj] = await Promise.all([
+      const [dataHistorique, dataRangs, dataMaj, dataChampions] = await Promise.all([
         fetch(`${base}/historique${suffixeModeHistorique}`).then(lireJson),
         fetch(`${base}/rang`).then(lireJson),
         fetch(`${base}/maj`).then(lireJson),
+        fetch(`${base}/champions${suffixeModeHistorique}`).then(lireJson),
       ]);
 
       setStats(dataStats);
       setHistorique(dataHistorique.historique);
       setRangs(dataRangs);
+      setChampions(dataChampions.champions);
       setDerniereMaj(dataMaj.derniere_maj);
       // Pseudo officiel stocké en base (bonne casse) si on l'a, sinon ce qui a été tapé
       const premierMatch = dataHistorique.historique[0];
@@ -164,6 +169,7 @@ function App() {
               <div className="colonne-gauche">
                 {rangs && <RankCard rangs={rangs} />}
                 {stats && <StatsCard stats={stats} dd={dd} />}
+                {champions && <ChampionStats champions={champions} dd={dd} />}
               </div>
 
               {historique && historique.length > 0 && (

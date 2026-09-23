@@ -478,6 +478,71 @@
   border-radius: 4px;
 }
 
+/* Stats par champion */
+
+.ligne-champion {
+  display: grid;
+  grid-template-columns: 24px minmax(0, 1fr) 50px 76px;
+  align-items: center;
+  gap: 4px;
+  padding: 7px 0;
+  border-bottom: 1px solid var(--bordure-hextech);
+  font-size: 13px;
+}
+
+.ligne-champion:last-of-type {
+  border-bottom: none;
+}
+
+.icone-champion-stats {
+  width: 24px;
+  height: 24px;
+  border-radius: 5px;
+  border: 1px solid var(--bordure-hextech);
+}
+
+.champion-stats-nom {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.champion-stats-nom .champion-nom {
+  font-size: 13px;
+}
+
+.champion-stats-colonne {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  font-weight: 600;
+}
+
+.champion-stats-detail {
+  font-size: 11px;
+  font-weight: normal;
+  color: var(--texte-faible);
+  white-space: nowrap;
+}
+
+.bouton-voir-tout {
+  width: 100%;
+  margin-top: 8px;
+  padding: 6px;
+  background: none;
+  border: 1px solid var(--bordure);
+  border-radius: var(--rayon);
+  color: var(--or);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.bouton-voir-tout:hover {
+  border-color: var(--or-fonce);
+  background-color: rgba(200, 170, 110, 0.06);
+}
+
 /* Liste matchs */
 
 .liste-matchs {
