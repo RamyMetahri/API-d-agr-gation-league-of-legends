@@ -21,6 +21,13 @@ jobs:
       - run: pip install -r requirements-dev.txt
       - run: pytest
 
+  docker:
+    name: Image Docker de l'API
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker build -t riot-stats-api ./riot-stats-api
+
   front:
     name: Front (lint + build)
     runs-on: ubuntu-latest

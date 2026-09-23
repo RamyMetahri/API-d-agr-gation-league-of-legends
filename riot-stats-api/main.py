@@ -9,7 +9,7 @@ from contextlib import asynccontextmanager
 from typing import Literal
 
 import httpx
-from fastapi import FastAPI, Query, Request
+from fastapi import Depends, FastAPI, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, RedirectResponse
 
@@ -38,6 +38,7 @@ from database import (
     sauvegarder_rang,
 )
 from match_resume import resumer_match
+from rate_limit import LimiteurRequetes
 
 
 @asynccontextmanager
@@ -58,6 +59,10 @@ app.add_middleware(
     allow_methods=["GET"],
     allow_headers=["*"],
 )
+
+# Limite par IP sur les routes qui peuvent appeler Riot, pour protéger notre quota
+limiteur = LimiteurRequetes(max_requetes=int(os.getenv("RATE_LIMIT_PAR_MINUTE", "60")), fenetre_secondes=60)
+LIMITE = [Depends(limiteur)]
 
 # Liste blanche : la plateforme sert à construire l'URL Riot, on ne laisse pas passer n'importe quoi
 Platform = Literal[
@@ -106,7 +111,13 @@ def racine():
     return RedirectResponse(url="/docs")
 
 
-@app.get("/joueur/{pseudo}/{tag}")
+@app.get("/sante")
+def sante():
+    """Utilisée par l'hébergeur pour vérifier que le serveur répond."""
+    return {"statut": "ok"}
+
+
+@app.get("/joueur/{pseudo}/{tag}", dependencies=LIMITE)
 def joueur(pseudo: str, tag: str):
     """
     Récupère le compte Riot (PUUID + pseudo actuel) pour un pseudo#tag donné.
@@ -162,7 +173,7 @@ def rafraichir_joueur(puuid: str, count: int) -> dict:
     return {"match_ids": match_ids, "nouveaux": nouveaux}
 
 
-@app.get("/joueur/{pseudo}/{tag}/matchs")
+@app.get("/joueur/{pseudo}/{tag}/matchs", dependencies=LIMITE)
 def matchs_du_joueur(pseudo: str, tag: str, count: int = Query(10, ge=1, le=50)):
     puuid = get_puuid(pseudo, tag)
     resultat = rafraichir_joueur(puuid, count)
@@ -174,7 +185,7 @@ def matchs_du_joueur(pseudo: str, tag: str, count: int = Query(10, ge=1, le=50))
     }
 
 
-@app.get("/match/{match_id}")
+@app.get("/match/{match_id}", dependencies=LIMITE)
 def details_match(match_id: str):
     """
     Détail d'un match (les 10 joueurs, items, dégâts...) en version allégée.
@@ -196,14 +207,14 @@ def details_match(match_id: str):
     return resumer_match(data)
 
 
-@app.get("/joueur/{pseudo}/{tag}/historique")
+@app.get("/joueur/{pseudo}/{tag}/historique", dependencies=LIMITE)
 def historique_joueur(pseudo: str, tag: str, queue_id: int = None, limite: int = Query(20, ge=1, le=100)):
     puuid = get_puuid(pseudo, tag)
     historique = get_historique_joueur(puuid, queue_id=queue_id, limite=limite)
     return {"historique": historique}
 
 
-@app.get("/joueur/{pseudo}/{tag}/stats")
+@app.get("/joueur/{pseudo}/{tag}/stats", dependencies=LIMITE)
 def stats_joueur(pseudo: str, tag: str, limite: int = Query(15, ge=1, le=50), queue_id: int = None):
     puuid = get_puuid(pseudo, tag)
 
@@ -213,7 +224,7 @@ def stats_joueur(pseudo: str, tag: str, limite: int = Query(15, ge=1, le=50), qu
     return get_stats_joueur(puuid, limite=limite, queue_id=queue_id)
 
 
-@app.get("/joueur/{pseudo}/{tag}/rang")
+@app.get("/joueur/{pseudo}/{tag}/rang", dependencies=LIMITE)
 def rang_joueur(pseudo: str, tag: str, platform: Platform = "euw1"):
     """
     Récupère et sauvegarde le rang du joueur pour chaque file (Solo/Duo, Flex).
@@ -244,7 +255,7 @@ def recherche_joueurs(q: str):
     return {"resultats": rechercher_joueurs(q)}
 
 
-@app.get("/joueur/{pseudo}/{tag}/maj")
+@app.get("/joueur/{pseudo}/{tag}/maj", dependencies=LIMITE)
 def derniere_maj_joueur(pseudo: str, tag: str):
     """Renvoie la date de dernière synchro, pour afficher 'mis à jour il y a Xmin'."""
     puuid = get_puuid(pseudo, tag)

@@ -19,6 +19,7 @@ import main
 @pytest.fixture
 def client():
     # Sans "with", le lifespan (creer_tables) ne tourne pas : pas besoin de base
+    main.limiteur.reinitialiser()
     return TestClient(main.app)
 
 

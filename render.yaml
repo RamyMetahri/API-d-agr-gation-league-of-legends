@@ -1,0 +1,25 @@
+# Blueprint Render : crée l'API (Docker) et la base PostgreSQL en un clic.
+# Dashboard Render > New > Blueprint > choisir ce dépôt.
+databases:
+  - name: riot-stats-db
+    plan: free
+    databaseName: riot_stats
+    user: riot
+
+services:
+  - type: web
+    name: riot-stats-api
+    runtime: docker
+    plan: free
+    dockerContext: ./riot-stats-api
+    dockerfilePath: ./riot-stats-api/Dockerfile
+    healthCheckPath: /sante
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: riot-stats-db
+          property: connectionString
+      - key: RIOT_API_KEY
+        sync: false # à saisir dans le dashboard, jamais dans le dépôt
+      - key: CORS_ORIGINS
+        sync: false # ex : https://riot-stats.vercel.app
