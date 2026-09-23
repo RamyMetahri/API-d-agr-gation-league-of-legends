@@ -1,0 +1,90 @@
+:root {
+  color-scheme: dark;
+
+  /* --- Palette Hextech (League of Legends) --- */
+  --bleu-nuit: #0a1428;
+  --bleu-nuit-clair: #0a323c;
+  --panneau: #1e2328;
+  --panneau-clair: #2a2f36;
+  --bordure: #3a3f46;
+  --bordure-hextech: #1e282d;
+
+  --or-clair: #f0e6d2;
+  --or: #c8aa6e;
+  --or-vif: #c89b3c;
+  --or-fonce: #785a28;
+
+  --cyan-hextech: #0ac8b9;
+  --cyan-hextech-fonce: #0397ab;
+
+  --texte: #f0e6d2;
+  --texte-att: #a09b8c;
+  --texte-faible: #5b5a56;
+
+  --victoire: #0ac8b9;
+  --defaite: #e84057;
+  --alerte: #e84057;
+
+  --ombre-or: 0 0 12px rgba(200, 170, 110, 0.35);
+  --rayon: 4px;
+
+  font-family: "Inter", "Segoe UI", Arial, Helvetica, sans-serif;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html, body, #root {
+  min-height: 100%;
+}
+
+body {
+  background-color: var(--bleu-nuit);
+  background-image:
+    radial-gradient(ellipse 1200px 700px at 50% -10%, rgba(10, 200, 185, 0.08), transparent 60%),
+    linear-gradient(160deg, #0a1428 0%, #0a1721 45%, #0a1428 100%),
+    repeating-linear-gradient(45deg, rgba(200, 170, 110, 0.025) 0px, rgba(200, 170, 110, 0.025) 1px, transparent 1px, transparent 26px),
+    repeating-linear-gradient(-45deg, rgba(200, 170, 110, 0.025) 0px, rgba(200, 170, 110, 0.025) 1px, transparent 1px, transparent 26px);
+  background-attachment: fixed;
+  color: var(--texte);
+  -webkit-font-smoothing: antialiased;
+}
+
+h1, h2, h3, .police-affichage {
+  font-family: "Cinzel", "Georgia", serif;
+}
+
+::selection {
+  background: var(--or-fonce);
+  color: var(--or-clair);
+}
+
+:focus-visible {
+  outline: 2px solid var(--cyan-hextech);
+  outline-offset: 2px;
+}
+
+/* Scrollbar (Firefox) */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--or-fonce) var(--panneau);
+}
+
+/* Scrollbar (WebKit) */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background-color: var(--bordure);
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background-color: var(--or-fonce);
+}

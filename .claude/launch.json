@@ -1,0 +1,17 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "api",
+      "runtimeExecutable": "riot-stats-api/venv/Scripts/python.exe",
+      "runtimeArgs": ["-m", "uvicorn", "main:app", "--app-dir", "riot-stats-api", "--port", "8000"],
+      "port": 8000
+    },
+    {
+      "name": "front",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["--prefix", "riot-stats-front", "run", "dev"],
+      "port": 5173
+    }
+  ]
+}
