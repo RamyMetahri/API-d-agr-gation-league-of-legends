@@ -51,11 +51,14 @@ async def lifespan(app: FastAPI):
 app = FastAPI(title="Riot Stats API", lifespan=lifespan)
 
 # Origines autorisées, séparées par des virgules (ex : "https://mon-site.vercel.app")
-CORS_ORIGINS = os.getenv("CORS_ORIGINS", "http://localhost:5173,http://127.0.0.1:5173")
+CORS_ORIGINS = os.getenv("CORS_ORIGINS", "")
+# En développement, le front peut tourner sur n'importe quel port local (Vite passe à 5174 si 5173 est pris)
+CORS_ORIGIN_REGEX = os.getenv("CORS_ORIGIN_REGEX", r"http://(localhost|127\.0\.0\.1)(:\d+)?")
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[origine.strip() for origine in CORS_ORIGINS.split(",") if origine.strip()],
+    allow_origin_regex=CORS_ORIGIN_REGEX or None,
     allow_methods=["GET"],
     allow_headers=["*"],
 )
@@ -164,6 +167,7 @@ def rafraichir_joueur(puuid: str, count: int) -> dict:
             win=participant["win"],
             gold_earned=participant["goldEarned"],
             total_minions_killed=participant["totalMinionsKilled"],
+            neutral_minions_killed=participant.get("neutralMinionsKilled", 0),
         )
         if inserte:
             nouveaux += 1
