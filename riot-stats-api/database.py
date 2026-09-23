@@ -81,6 +81,19 @@ def creer_tables():
         );
     """)
 
+    # Migration : monstres neutres (jungle), ajoutés après coup pour avoir le vrai CS
+    cur.execute("ALTER TABLE participations ADD COLUMN IF NOT EXISTS neutral_minions_killed INTEGER;")
+    # Rattrapage des anciennes lignes à partir du JSON complet des matchs, quand on l'a
+    cur.execute("""
+        UPDATE participations p
+        SET neutral_minions_killed = (participant->>'neutralMinionsKilled')::int
+        FROM matchs_details d,
+             jsonb_array_elements(d.data->'info'->'participants') AS participant
+        WHERE d.match_id = p.match_id
+          AND participant->>'puuid' = p.puuid
+          AND p.neutral_minions_killed IS NULL;
+    """)
+
     conn.commit()
     cur.close()
     conn.close()
@@ -122,14 +135,18 @@ def get_puuid_en_base(pseudo: str, tag: str):
 
 
 def matchs_existants(puuid: str, match_ids: list[str]) -> set[str]:
-    """Renvoie les match_id de la liste pour lesquels la participation du joueur est déjà en base."""
+    """
+    Renvoie les match_id de la liste pour lesquels la participation du joueur est déjà en base et complète.
+    Une ligne sans neutral_minions_killed (enregistrée avant l'ajout de la colonne) est considérée
+    comme absente : le match sera re-téléchargé une fois pour la compléter.
+    """
     if not match_ids:
         return set()
     conn = get_connection()
     cur = conn.cursor()
     cur.execute("""
         SELECT match_id FROM participations
-        WHERE puuid = %s AND match_id = ANY(%s);
+        WHERE puuid = %s AND match_id = ANY(%s) AND neutral_minions_killed IS NOT NULL;
     """, (puuid, list(match_ids)))
     existants = {row[0] for row in cur.fetchall()}
     cur.close()
@@ -178,18 +195,27 @@ def get_details_match(match_id: str):
 
 def sauvegarder_participation(puuid: str, match_id: str, champion_name: str,
                                 kills: int, deaths: int, assists: int, win: bool,
-                                gold_earned: int, total_minions_killed: int) -> bool:
-    """Insère une participation. Retourne True si une nouvelle ligne a été insérée, False sinon."""
+                                gold_earned: int, total_minions_killed: int,
+                                neutral_minions_killed: int) -> bool:
+    """
+    Insère une participation, ou complète le CS d'une ligne existante.
+    Retourne True si une nouvelle ligne a été insérée, False si elle existait déjà.
+    """
     conn = get_connection()
     cur = conn.cursor()
+    # xmax = 0 uniquement pour une ligne tout juste insérée (astuce PostgreSQL pour distinguer INSERT et UPDATE)
     cur.execute("""
         INSERT INTO participations
-            (puuid, match_id, champion_name, kills, deaths, assists, win, gold_earned, total_minions_killed)
-        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
-        ON CONFLICT (puuid, match_id) DO NOTHING;
-    """, (puuid, match_id, champion_name, kills, deaths, assists, win, gold_earned, total_minions_killed))
+            (puuid, match_id, champion_name, kills, deaths, assists, win, gold_earned,
+             total_minions_killed, neutral_minions_killed)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+        ON CONFLICT (puuid, match_id)
+        DO UPDATE SET neutral_minions_killed = EXCLUDED.neutral_minions_killed
+        RETURNING (xmax = 0);
+    """, (puuid, match_id, champion_name, kills, deaths, assists, win, gold_earned,
+          total_minions_killed, neutral_minions_killed))
+    inserte = cur.fetchone()[0]
     conn.commit()
-    inserte = cur.rowcount > 0
     cur.close()
     conn.close()
     return inserte
@@ -239,6 +265,7 @@ def get_historique_joueur(puuid: str, queue_id: int = None, limite: int = 20):
             p.win,
             p.gold_earned,
             p.total_minions_killed,
+            p.total_minions_killed + COALESCE(p.neutral_minions_killed, 0) AS cs,
             m.match_id,
             m.game_creation,
             m.game_duration,

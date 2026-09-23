@@ -69,6 +69,7 @@ def test_rafraichir_ne_telecharge_que_les_nouveaux_matchs(monkeypatch, base_fact
     assert telecharges == ["EUW1_2"]
     assert resultat["nouveaux"] == 1
     assert base_factice[0]["match_id"] == "EUW1_2"
+    assert base_factice[0]["neutral_minions_killed"] == 10  # CS de jungle bien transmis
 
 
 def test_rafraichir_ignore_un_match_ou_le_joueur_est_absent(monkeypatch, base_factice):

@@ -3,7 +3,7 @@ import { classeKda, formatDate, formatDuree, NOMS_MODES, ratioKda } from "../for
 
 /** Une ligne de l'historique. Cliquable : déplie le détail du match. */
 export default function MatchRow({ match, dd, ouvert, onToggle }) {
-  const csParMinute = (match.total_minions_killed / (match.game_duration / 60)).toFixed(1);
+  const csParMinute = (match.cs / (match.game_duration / 60)).toFixed(1);
 
   function gererTouche(e) {
     if (e.key === "Enter" || e.key === " ") {
@@ -38,7 +38,7 @@ export default function MatchRow({ match, dd, ouvert, onToggle }) {
         </span>
       </div>
       <div className="farm-match">
-        <span>{match.total_minions_killed} CS</span>
+        <span>{match.cs} CS</span>
         <span className="cs-min">{csParMinute}/min</span>
       </div>
       <div className="gold-match">
