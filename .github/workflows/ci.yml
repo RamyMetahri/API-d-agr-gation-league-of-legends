@@ -1,0 +1,39 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  api:
+    name: API (pytest)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: riot-stats-api
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: riot-stats-api/requirements*.txt
+      - run: pip install -r requirements-dev.txt
+      - run: pytest
+
+  front:
+    name: Front (lint + build)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: riot-stats-front
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: riot-stats-front/package-lock.json
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run build
