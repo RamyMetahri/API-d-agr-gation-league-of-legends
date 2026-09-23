@@ -4,6 +4,7 @@ Connexion à PostgreSQL et création des tables, avec psycopg2.
 
 import os
 import psycopg2
+from psycopg2.extras import Json
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -20,7 +21,7 @@ def get_connection():
 
 
 def creer_tables():
-    """Crée les 3 tables si elles n'existent pas déjà."""
+    """Crée les tables si elles n'existent pas déjà."""
     conn = get_connection()
     cur = conn.cursor()
 
@@ -72,7 +73,15 @@ def creer_tables():
         );
     """)
 
-    conn.commit()  
+    # JSON complet renvoyé par Riot, pour afficher le détail d'un match sans rappeler Riot
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS matchs_details (
+            match_id TEXT PRIMARY KEY REFERENCES matchs(match_id),
+            data JSONB NOT NULL
+        );
+    """)
+
+    conn.commit()
     cur.close()
     conn.close()
 
@@ -142,6 +151,31 @@ def sauvegarder_match(match_id: str, game_duration: int, game_creation: int, que
     conn.close()
 
 
+def sauvegarder_details_match(match_id: str, data: dict):
+    """Stocke le JSON complet d'un match. Si déjà présent, ne fait rien."""
+    conn = get_connection()
+    cur = conn.cursor()
+    cur.execute("""
+        INSERT INTO matchs_details (match_id, data)
+        VALUES (%s, %s)
+        ON CONFLICT (match_id) DO NOTHING;
+    """, (match_id, Json(data)))
+    conn.commit()
+    cur.close()
+    conn.close()
+
+
+def get_details_match(match_id: str):
+    """Renvoie le JSON complet d'un match stocké en base (ou None)."""
+    conn = get_connection()
+    cur = conn.cursor()
+    cur.execute("SELECT data FROM matchs_details WHERE match_id = %s;", (match_id,))
+    row = cur.fetchone()
+    cur.close()
+    conn.close()
+    return row[0] if row else None
+
+
 def sauvegarder_participation(puuid: str, match_id: str, champion_name: str,
                                 kills: int, deaths: int, assists: int, win: bool,
                                 gold_earned: int, total_minions_killed: int) -> bool:
@@ -195,6 +229,7 @@ def get_historique_joueur(puuid: str, queue_id: int = None, limite: int = 20):
 
     requete = """
         SELECT
+            p.puuid,
             j.pseudo,
             j.tag,
             p.champion_name,

@@ -5,6 +5,7 @@ Doc auto  : http://127.0.0.1:8000/docs
 """
 
 import os
+from contextlib import asynccontextmanager
 from typing import Literal
 
 import httpx
@@ -22,6 +23,7 @@ from database import (
     a_besoin_de_refresh,
     creer_tables,
     get_derniere_maj,
+    get_details_match,
     get_historique_joueur,
     get_puuid_en_base,
     get_rangs_joueur,
@@ -29,13 +31,23 @@ from database import (
     marquer_a_jour,
     matchs_existants,
     rechercher_joueurs,
+    sauvegarder_details_match,
     sauvegarder_joueur,
     sauvegarder_match,
     sauvegarder_participation,
     sauvegarder_rang,
 )
+from match_resume import resumer_match
 
-app = FastAPI(title="Riot Stats API")
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Création des tables au démarrage du serveur (et pas à l'import, pour pouvoir tester sans base)
+    creer_tables()
+    yield
+
+
+app = FastAPI(title="Riot Stats API", lifespan=lifespan)
 
 # Origines autorisées, séparées par des virgules (ex : "https://mon-site.vercel.app")
 CORS_ORIGINS = os.getenv("CORS_ORIGINS", "http://localhost:5173,http://127.0.0.1:5173")
@@ -46,8 +58,6 @@ app.add_middleware(
     allow_methods=["GET"],
     allow_headers=["*"],
 )
-
-creer_tables()
 
 # Liste blanche : la plateforme sert à construire l'URL Riot, on ne laisse pas passer n'importe quoi
 Platform = Literal[
@@ -131,6 +141,7 @@ def rafraichir_joueur(puuid: str, count: int) -> dict:
             game_creation=info["gameCreation"],
             queue_id=info["queueId"],
         )
+        sauvegarder_details_match(match_id, match_data)
 
         inserte = sauvegarder_participation(
             puuid=puuid,
@@ -166,10 +177,23 @@ def matchs_du_joueur(pseudo: str, tag: str, count: int = Query(10, ge=1, le=50))
 @app.get("/match/{match_id}")
 def details_match(match_id: str):
     """
-    Récupère le détail complet d'un match à partir de son ID.
+    Détail d'un match (les 10 joueurs, items, dégâts...) en version allégée.
+    Lu en base si possible, sinon demandé à Riot puis stocké.
     Exemple : GET /match/EUW1_1234567890
     """
-    return get_match_details(match_id)
+    data = get_details_match(match_id)
+    if data is None:
+        data = get_match_details(match_id)
+        info = data["info"]
+        sauvegarder_match(
+            match_id=match_id,
+            game_duration=info["gameDuration"],
+            game_creation=info["gameCreation"],
+            queue_id=info["queueId"],
+        )
+        sauvegarder_details_match(match_id, data)
+
+    return resumer_match(data)
 
 
 @app.get("/joueur/{pseudo}/{tag}/historique")

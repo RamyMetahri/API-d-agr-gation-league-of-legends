@@ -485,7 +485,6 @@
   min-width: 0;
   display: flex;
   flex-direction: column;
-  max-height: 660px;
 }
 
 .conteneur-matchs {
@@ -508,6 +507,22 @@
 
 .carte-match:hover {
   transform: translateX(2px);
+}
+
+.carte-match[role="button"] {
+  cursor: pointer;
+}
+
+.carte-match.ouvert {
+  margin-bottom: 0;
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
+}
+
+.chevron-match {
+  margin-left: auto;
+  color: var(--texte-faible);
+  font-size: 12px;
 }
 
 .carte-match.victoire {
@@ -717,6 +732,203 @@
 @keyframes chatoiement {
   0% { background-position: 200% 0; }
   100% { background-position: -200% 0; }
+}
+
+/* --- Détail d'un match --- */
+
+.squelette-detail {
+  height: 180px;
+  margin-bottom: 6px;
+}
+
+.detail-match {
+  margin-bottom: 10px;
+  padding: 8px 10px 10px;
+  background-color: rgba(0, 0, 0, 0.18);
+  border: 1px solid var(--bordure-hextech);
+  border-top: none;
+  border-radius: 0 0 var(--rayon) var(--rayon);
+  overflow-x: auto;
+}
+
+.equipe + .equipe {
+  margin-top: 10px;
+}
+
+.entete-equipe {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  padding: 4px 6px 6px;
+  font-size: 12px;
+  font-weight: 600;
+  min-width: 700px;
+}
+
+.nom-equipe {
+  color: var(--texte-att);
+  font-weight: normal;
+}
+
+.objectifs {
+  margin-left: auto;
+  color: var(--texte-faible);
+  font-weight: normal;
+}
+
+.ligne-detail {
+  display: grid;
+  grid-template-columns: 34px 16px 16px minmax(90px, 1fr) 64px 78px 42px 46px 44px 164px;
+  align-items: center;
+  gap: 8px;
+  min-width: 700px;
+  padding: 4px 6px;
+  border-left: 3px solid transparent;
+  border-radius: var(--rayon);
+  font-size: 12px;
+}
+
+.equipe.victoire .ligne-detail {
+  background-color: rgba(10, 200, 185, 0.05);
+}
+
+.equipe.defaite .ligne-detail {
+  background-color: rgba(232, 64, 87, 0.05);
+}
+
+.ligne-detail + .ligne-detail {
+  margin-top: 2px;
+}
+
+.ligne-detail.joueur-recherche {
+  border-left-color: var(--or);
+  background-color: rgba(200, 170, 110, 0.12);
+}
+
+.detail-champion {
+  position: relative;
+  width: 34px;
+  height: 34px;
+}
+
+.detail-icone-champion {
+  width: 34px;
+  height: 34px;
+  border-radius: 6px;
+  border: 1px solid var(--bordure-hextech);
+}
+
+.detail-niveau {
+  position: absolute;
+  right: -4px;
+  bottom: -4px;
+  min-width: 16px;
+  padding: 0 3px;
+  border-radius: 8px;
+  background-color: var(--bleu-nuit);
+  border: 1px solid var(--bordure);
+  font-size: 10px;
+  text-align: center;
+  line-height: 14px;
+}
+
+.detail-sorts {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.detail-icone-petite {
+  display: block;
+  width: 16px;
+  height: 16px;
+  border-radius: 3px;
+}
+
+.rune-secondaire {
+  padding: 2px;
+}
+
+.detail-nom {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.lien-joueur {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--texte);
+  font: inherit;
+  cursor: pointer;
+}
+
+.lien-joueur:hover {
+  color: var(--or);
+  text-decoration: underline;
+}
+
+.joueur-recherche .detail-nom {
+  color: var(--or);
+  font-weight: 600;
+}
+
+.detail-kda {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.detail-degats {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.barre-degats {
+  height: 5px;
+  border-radius: 3px;
+  background-color: var(--panneau-clair);
+  overflow: hidden;
+}
+
+.barre-degats-remplie {
+  height: 100%;
+  background-color: var(--defaite);
+}
+
+.detail-chiffre {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+}
+
+.detail-unite {
+  font-size: 10px;
+  color: var(--texte-faible);
+}
+
+.detail-items {
+  display: flex;
+  gap: 2px;
+}
+
+.detail-icone-item {
+  display: block;
+  width: 21px;
+  height: 21px;
+  border-radius: 3px;
+}
+
+.icone-vide {
+  display: block;
+  background-color: var(--panneau-clair);
 }
 
 /* --- Pied de page --- */
