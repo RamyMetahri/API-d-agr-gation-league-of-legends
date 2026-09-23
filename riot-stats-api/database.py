@@ -94,6 +94,30 @@ def creer_tables():
           AND p.neutral_minions_killed IS NULL;
     """)
 
+    # Migration : icône de profil et niveau, lus dans les matchs (aucun appel Riot supplémentaire).
+    # icone_partie = date de la partie d'où vient l'icône, pour ne garder que la plus récente.
+    cur.execute("ALTER TABLE joueurs ADD COLUMN IF NOT EXISTS icone_profil INTEGER;")
+    cur.execute("ALTER TABLE joueurs ADD COLUMN IF NOT EXISTS niveau INTEGER;")
+    cur.execute("ALTER TABLE joueurs ADD COLUMN IF NOT EXISTS icone_partie BIGINT;")
+    # Rattrapage à partir du JSON complet des matchs déjà stockés
+    cur.execute("""
+        UPDATE joueurs j
+        SET icone_profil = s.icone, niveau = s.niveau, icone_partie = s.creation
+        FROM (
+            SELECT DISTINCT ON (participant->>'puuid')
+                   participant->>'puuid' AS puuid,
+                   (participant->>'profileIcon')::int AS icone,
+                   (participant->>'summonerLevel')::int AS niveau,
+                   (d.data->'info'->>'gameCreation')::bigint AS creation
+            FROM matchs_details d,
+                 jsonb_array_elements(d.data->'info'->'participants') AS participant
+            WHERE participant ? 'profileIcon'
+            ORDER BY participant->>'puuid', (d.data->'info'->>'gameCreation')::bigint DESC
+        ) s
+        WHERE s.puuid = j.puuid
+          AND (j.icone_partie IS NULL OR s.creation > j.icone_partie);
+    """)
+
     conn.commit()
     cur.close()
     conn.close()
@@ -116,6 +140,20 @@ def sauvegarder_joueur(puuid: str, pseudo: str, tag: str):
     conn.commit()
     cur.close()
     conn.close()
+
+def maj_icone_joueur(puuid: str, icone_profil: int, niveau: int, game_creation: int):
+    """Enregistre l'icône et le niveau vus dans une partie, si elle est plus récente que la dernière connue."""
+    conn = get_connection()
+    cur = conn.cursor()
+    cur.execute("""
+        UPDATE joueurs
+        SET icone_profil = %s, niveau = %s, icone_partie = %s
+        WHERE puuid = %s AND (icone_partie IS NULL OR icone_partie < %s);
+    """, (icone_profil, niveau, game_creation, puuid, game_creation))
+    conn.commit()
+    cur.close()
+    conn.close()
+
 
 def get_puuid_en_base(pseudo: str, tag: str):
     """
@@ -452,7 +490,7 @@ def rechercher_joueurs(prefixe: str, limite: int = 8):
     conn = get_connection()
     cur = conn.cursor()
     cur.execute("""
-        SELECT pseudo, tag
+        SELECT pseudo, tag, icone_profil
         FROM joueurs
         WHERE pseudo ILIKE %s
         ORDER BY pseudo
@@ -461,19 +499,20 @@ def rechercher_joueurs(prefixe: str, limite: int = 8):
     resultats = cur.fetchall()
     cur.close()
     conn.close()
-    return [{"pseudo": p, "tag": t} for p, t in resultats]
+    return [{"pseudo": p, "tag": t, "icone_profil": i} for p, t, i in resultats]
 
 
-def get_derniere_maj(puuid: str):
-    """Renvoie la date de dernière synchro d'un joueur (ou None)."""
+def get_profil_joueur(puuid: str) -> dict:
+    """Date de dernière synchro, icône de profil et niveau d'un joueur (None si inconnus)."""
     conn = get_connection()
     cur = conn.cursor()
     # AT TIME ZONE : renvoie une date avec fuseau, pour que le front calcule "il y a X min" correctement
     cur.execute("""
-        SELECT derniere_maj AT TIME ZONE current_setting('TimeZone')
+        SELECT derniere_maj AT TIME ZONE current_setting('TimeZone'), icone_profil, niveau
         FROM joueurs WHERE puuid = %s;
     """, (puuid,))
     row = cur.fetchone()
     cur.close()
     conn.close()
-    return row[0] if row else None
+    derniere, icone, niveau = row if row else (None, None, None)
+    return {"derniere_maj": derniere, "icone_profil": icone, "niveau": niveau}

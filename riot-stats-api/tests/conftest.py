@@ -43,6 +43,8 @@ def fabriquer_participant(numero: int, team_id: int, victoire: bool, **surcharge
         "totalDamageDealtToChampions": 10000 + numero * 1000,
         "visionScore": 20,
         **{f"item{i}": 1000 + i for i in range(7)},
+        "profileIcon": 5000 + numero,
+        "summonerLevel": 100 + numero,
         "summoner1Id": 4,
         "summoner2Id": 14,
         "perks": {

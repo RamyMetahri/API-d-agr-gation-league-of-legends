@@ -46,6 +46,7 @@ def base_factice(monkeypatch):
     monkeypatch.setattr(main, "sauvegarder_match", lambda **kw: None)
     monkeypatch.setattr(main, "sauvegarder_details_match", lambda match_id, data: None)
     monkeypatch.setattr(main, "marquer_a_jour", lambda puuid: None)
+    monkeypatch.setattr(main, "maj_icone_joueur", lambda **kw: None)
     monkeypatch.setattr(
         main, "sauvegarder_participation",
         lambda **kw: participations.append(kw) or True,
@@ -70,6 +71,30 @@ def test_rafraichir_ne_telecharge_que_les_nouveaux_matchs(monkeypatch, base_fact
     assert resultat["nouveaux"] == 1
     assert base_factice[0]["match_id"] == "EUW1_2"
     assert base_factice[0]["neutral_minions_killed"] == 10  # CS de jungle bien transmis
+
+
+def test_rafraichir_enregistre_l_icone_de_profil_du_joueur(monkeypatch, base_factice):
+    icones = []
+    monkeypatch.setattr(main, "maj_icone_joueur", lambda **kw: icones.append(kw))
+    monkeypatch.setattr(main, "get_match_ids_by_puuid", lambda puuid, count: ["EUW1_1"])
+    monkeypatch.setattr(main, "matchs_existants", lambda puuid, ids: set())
+    monkeypatch.setattr(main, "get_match_details", lambda match_id: fabriquer_match(match_id))
+
+    main.rafraichir_joueur("puuid-3", count=1)
+
+    assert icones == [
+        {"puuid": "puuid-3", "icone_profil": 5003, "niveau": 103, "game_creation": 1_700_000_000_000}
+    ]
+
+
+def test_maj_renvoie_l_icone_et_le_niveau(client, monkeypatch):
+    monkeypatch.setattr(main, "get_puuid", lambda pseudo, tag: "puuid-1")
+    monkeypatch.setattr(
+        main, "get_profil_joueur",
+        lambda puuid: {"derniere_maj": None, "icone_profil": 29, "niveau": 250},
+    )
+
+    assert client.get("/joueur/Joueur/EUW/maj").json() == {"derniere_maj": None, "icone_profil": 29, "niveau": 250}
 
 
 def test_rafraichir_ignore_un_match_ou_le_joueur_est_absent(monkeypatch, base_factice):

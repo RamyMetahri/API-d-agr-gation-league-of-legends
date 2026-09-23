@@ -22,13 +22,14 @@ from riot_client import (
 from database import (
     a_besoin_de_refresh,
     creer_tables,
-    get_derniere_maj,
     get_details_match,
     get_historique_joueur,
+    get_profil_joueur,
     get_puuid_en_base,
     get_rangs_joueur,
     get_stats_joueur,
     get_totaux_par_champion,
+    maj_icone_joueur,
     marquer_a_jour,
     matchs_existants,
     rechercher_joueurs,
@@ -158,6 +159,13 @@ def rafraichir_joueur(puuid: str, count: int) -> dict:
             queue_id=info["queueId"],
         )
         sauvegarder_details_match(match_id, match_data)
+        if "profileIcon" in participant:
+            maj_icone_joueur(
+                puuid=puuid,
+                icone_profil=participant["profileIcon"],
+                niveau=participant.get("summonerLevel"),
+                game_creation=info["gameCreation"],
+            )
 
         inserte = sauvegarder_participation(
             puuid=puuid,
@@ -187,6 +195,7 @@ def matchs_du_joueur(pseudo: str, tag: str, count: int = Query(10, ge=1, le=50))
     return {
         "puuid": puuid,
         "match_ids": resultat["match_ids"],
+        "nouveaux": resultat["nouveaux"],
         "message": f"{resultat['nouveaux']} nouveaux matchs sauvegardés ({len(resultat['match_ids'])} récupérés au total)"
     }
 
@@ -273,7 +282,15 @@ def recherche_joueurs(q: str):
 
 @app.get("/joueur/{pseudo}/{tag}/maj", dependencies=LIMITE)
 def derniere_maj_joueur(pseudo: str, tag: str):
-    """Renvoie la date de dernière synchro, pour afficher 'mis à jour il y a Xmin'."""
+    """
+    Date de dernière synchro (pour afficher 'mis à jour il y a Xmin'), plus l'icône de profil
+    et le niveau lus dans la partie la plus récente en base. Aucun appel Riot hormis la recherche du joueur.
+    """
     puuid = get_puuid(pseudo, tag)
-    derniere = get_derniere_maj(puuid)
-    return {"derniere_maj": derniere.isoformat() if derniere else None}
+    profil = get_profil_joueur(puuid)
+    derniere = profil["derniere_maj"]
+    return {
+        "derniere_maj": derniere.isoformat() if derniere else None,
+        "icone_profil": profil["icone_profil"],
+        "niveau": profil["niveau"],
+    }
