@@ -41,6 +41,10 @@ function App() {
       return;
     }
 
+    // On affiche tout de suite le joueur demandé (avec le squelette de chargement) ;
+    // en cas d'erreur, on revient au joueur précédent (ou à l'accueil)
+    const joueurPrecedent = joueurAffiche;
+    setJoueurAffiche({ pseudo: pseudoRecherche, tag: tagRecherche });
     setChargement(true);
     setErreur(null);
 
@@ -71,6 +75,7 @@ function App() {
           : { pseudo: pseudoRecherche, tag: tagRecherche }
       );
     } catch (err) {
+      setJoueurAffiche(joueurPrecedent);
       setErreur(err.message);
     } finally {
       setChargement(false);
