@@ -3,30 +3,47 @@
 
   /* --- Palette Hextech (League of Legends) --- */
   --bleu-nuit: #0a1428;
+  --bleu-nuit-profond: #060e1c;
   --bleu-nuit-clair: #0a323c;
-  --panneau: #1e2328;
+  --panneau: #161b20;
+  --panneau-eleve: #1e2328;
   --panneau-clair: #2a2f36;
   --bordure: #3a3f46;
-  --bordure-hextech: #1e282d;
+  --bordure-hextech: #232a31;
 
   --or-clair: #f0e6d2;
   --or: #c8aa6e;
   --or-vif: #c89b3c;
   --or-fonce: #785a28;
+  --or-profond: #463714;
 
   --cyan-hextech: #0ac8b9;
   --cyan-hextech-fonce: #0397ab;
 
   --texte: #f0e6d2;
   --texte-att: #a09b8c;
-  --texte-faible: #5b5a56;
+  --texte-faible: #958f80; /* ≥ 4,5:1 sur tous les panneaux */
 
   --victoire: #0ac8b9;
-  --defaite: #e84057;
-  --alerte: #e84057;
+  --defaite: #e84057; /* remplissages */
+  --defaite-texte: #ff5a6e; /* texte rouge lisible sur fond sombre */
+  --alerte: #ff5a6e;
 
-  --ombre-or: 0 0 12px rgba(200, 170, 110, 0.35);
-  --rayon: 4px;
+  /* Trait doré des cadres, du clair vers le bronze, comme dans le client */
+  --trait-or: linear-gradient(180deg, var(--or) 0%, var(--or-fonce) 55%, var(--or-profond) 100%);
+
+  /* Espacements (base 4) */
+  --e-1: 4px;
+  --e-2: 8px;
+  --e-3: 12px;
+  --e-4: 16px;
+  --e-5: 24px;
+  --e-6: 32px;
+  --e-7: 48px;
+
+  --rayon: 2px;
+  --ease-sortie: cubic-bezier(0.16, 1, 0.3, 1);
+  --mouvement: 1; /* 0 quand l'utilisateur demande moins d'animations */
 
   font-family: "Inter", "Segoe UI", Arial, Helvetica, sans-serif;
 }
@@ -42,19 +59,35 @@ html, body, #root {
 }
 
 body {
-  background-color: var(--bleu-nuit);
-  background-image:
-    radial-gradient(ellipse 1200px 700px at 50% -10%, rgba(10, 200, 185, 0.08), transparent 60%),
-    linear-gradient(160deg, #0a1428 0%, #0a1721 45%, #0a1428 100%),
-    repeating-linear-gradient(45deg, rgba(200, 170, 110, 0.025) 0px, rgba(200, 170, 110, 0.025) 1px, transparent 1px, transparent 26px),
-    repeating-linear-gradient(-45deg, rgba(200, 170, 110, 0.025) 0px, rgba(200, 170, 110, 0.025) 1px, transparent 1px, transparent 26px);
-  background-attachment: fixed;
+  background-color: var(--bleu-nuit-profond);
+  background-image: linear-gradient(180deg, var(--bleu-nuit) 0%, var(--bleu-nuit-profond) 520px);
+  background-repeat: no-repeat;
   color: var(--texte);
+  font-size: 15px;
+  line-height: 1.45;
   -webkit-font-smoothing: antialiased;
 }
 
-h1, h2, h3, .police-affichage {
+h1, h2, h3 {
   font-family: "Cinzel", "Georgia", serif;
+  text-wrap: balance;
+}
+
+button, input, select {
+  font: inherit;
+  color: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+ul, ol {
+  list-style: none;
+}
+
+img {
+  display: block;
 }
 
 ::selection {
@@ -67,10 +100,19 @@ h1, h2, h3, .police-affichage {
   outline-offset: 2px;
 }
 
+input::placeholder {
+  color: var(--texte-faible);
+  opacity: 1;
+}
+
+input {
+  caret-color: var(--or);
+}
+
 /* Scrollbar (Firefox) */
 * {
   scrollbar-width: thin;
-  scrollbar-color: var(--or-fonce) var(--panneau);
+  scrollbar-color: var(--or-fonce) transparent;
 }
 
 /* Scrollbar (WebKit) */
@@ -87,4 +129,16 @@ h1, h2, h3, .police-affichage {
 }
 ::-webkit-scrollbar-thumb:hover {
   background-color: var(--or-fonce);
+}
+
+/* Réduire les animations : plus aucun déplacement ni flou, seulement des fondus courts.
+   Les indicateurs d'état (rotation d'Actualiser, chargement) restent. */
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --mouvement: 0;
+  }
+
+  html {
+    scroll-behavior: auto;
+  }
 }

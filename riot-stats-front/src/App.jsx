@@ -1,183 +1,348 @@
-import { useState } from "react";
+import { useEffect, useEffectEvent, useRef, useState } from "react";
+import { flushSync } from "react-dom";
 import { lireJson, urlJoueur } from "./api";
 import { useDdragon } from "./ddragon";
-import { formatDerniereMaj } from "./format";
+import { NOMS_MODES } from "./format";
 import ChampionStats from "./components/ChampionStats";
+import { Ecusson, IconeFermer } from "./components/Icones";
+import Avatar from "./components/Avatar";
 import MatchList from "./components/MatchList";
-import RankCard from "./components/RankCard";
+import ModeFilter from "./components/ModeFilter";
+import ProfileBanner from "./components/ProfileBanner";
 import SearchBar from "./components/SearchBar";
 import StatsCard from "./components/StatsCard";
 import "./App.css";
 
+const CLE_RECENTS = "riotstats.recents";
+const NB_RECENTS = 5;
+
+function lireRecents() {
+  try {
+    const recents = JSON.parse(localStorage.getItem(CLE_RECENTS));
+    return Array.isArray(recents) ? recents : [];
+  } catch {
+    return [];
+  }
+}
+
+function memoriserRecent(joueur) {
+  const recents = [joueur, ...lireRecents().filter((r) => `${r.pseudo}#${r.tag}`.toLowerCase() !== `${joueur.pseudo}#${joueur.tag}`.toLowerCase())].slice(0, NB_RECENTS);
+  try {
+    localStorage.setItem(CLE_RECENTS, JSON.stringify(recents));
+  } catch {
+    // stockage indisponible (navigation privée...) : les récents ne sont simplement pas gardés
+  }
+  return recents;
+}
+
+/** L'URL porte le joueur et le mode : lien partageable, bouton Retour et rafraîchissement fonctionnent. */
+function lireUrl() {
+  const params = new URLSearchParams(window.location.search);
+  const riotId = params.get("joueur") ?? "";
+  const position = riotId.lastIndexOf("#");
+  const mode = params.get("mode") ?? "";
+  if (position <= 0) return { joueur: null, mode };
+  return { joueur: { pseudo: riotId.slice(0, position), tag: riotId.slice(position + 1) }, mode };
+}
+
+function ecrireUrl(joueur, mode, remplacer = false) {
+  const params = new URLSearchParams();
+  if (joueur) params.set("joueur", `${joueur.pseudo}#${joueur.tag}`);
+  if (joueur && mode) params.set("mode", mode);
+  const url = params.size > 0 ? `?${params}` : window.location.pathname;
+  if (url === window.location.search) return;
+  if (remplacer) window.history.replaceState(null, "", url);
+  else window.history.pushState(null, "", url);
+}
+
+function messageErreur(err, joueur) {
+  const riotId = `${joueur.pseudo}#${joueur.tag}`;
+  if (err instanceof TypeError) return "Le serveur ne répond pas. Vérifie ta connexion, puis réessaie.";
+  if (err.status === 404) return `Aucun joueur «\u00a0${riotId}\u00a0» trouvé. Vérifie l'orthographe et le tag (ex : EUW).`;
+  if (err.status === 429) return "Trop de recherches d'un coup. Patiente une minute, puis réessaie.";
+  if (err.status === 401 || err.status === 403) {
+    return "L'accès à l'API Riot est momentanément indisponible (clé expirée). Réessaie plus tard.";
+  }
+  return err.message;
+}
+
+/** Retour après « Actualiser » ; rien si l'API ne précise pas le nombre de nouvelles parties. */
+function messageActualisation(nouveaux) {
+  if (nouveaux === undefined) return null;
+  if (nouveaux === 0) return "À jour : aucune nouvelle partie";
+  const s = nouveaux > 1 ? "s" : "";
+  return `${nouveaux} nouvelle${s} partie${s} ajoutée${s}`;
+}
+
+/**
+ * Change d'écran avec l'API View Transitions : le navigateur fond l'ancien et le nouvel état,
+ * et fait glisser les éléments qui portent le même view-transition-name (cadre doré, recherche).
+ * Sans support ou avec « réduire les animations », le changement est immédiat.
+ */
+function avecTransition(changer) {
+  const reduit = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+  if (!document.startViewTransition || reduit) {
+    changer();
+    return;
+  }
+  document.startViewTransition(() => flushSync(changer));
+}
+
+const DONNEES_VIDES = { stats: null, historique: null, rangs: null, champions: null, derniereMaj: null, profil: null };
+
 function App() {
   const dd = useDdragon();
 
-  const [pseudo, setPseudo] = useState("");
-  const [tag, setTag] = useState("");
-  const [mode, setMode] = useState("");
-
-  const [joueurAffiche, setJoueurAffiche] = useState(null);
-  const [stats, setStats] = useState(null);
-  const [historique, setHistorique] = useState(null);
-  const [rangs, setRangs] = useState(null);
-  const [champions, setChampions] = useState(null);
-  const [derniereMaj, setDerniereMaj] = useState(null);
-  const [chargement, setChargement] = useState(false);
-  const [actualisation, setActualisation] = useState(false);
+  // Un lien partagé (?joueur=...) affiche directement le squelette du profil, sans passer par l'accueil
+  const [joueur, setJoueur] = useState(() => lireUrl().joueur);
+  const [mode, setMode] = useState(() => lireUrl().mode);
+  const [donnees, setDonnees] = useState(DONNEES_VIDES);
+  const [chargement, setChargement] = useState(() => lireUrl().joueur !== null);
+  const [synchro, setSynchro] = useState(() => ({ enCours: lireUrl().joueur !== null, message: null }));
   const [erreur, setErreur] = useState(null);
+  const [recents, setRecents] = useState(lireRecents);
+  const requeteCourante = useRef(0);
 
   function retourAccueil() {
-    setJoueurAffiche(null);
-    setStats(null);
-    setHistorique(null);
-    setRangs(null);
-    setChampions(null);
-    setDerniereMaj(null);
+    requeteCourante.current++;
+    setJoueur(null);
+    setDonnees(DONNEES_VIDES);
     setErreur(null);
-    setPseudo("");
-    setTag("");
+    setChargement(false);
+    setSynchro({ enCours: false, message: null });
+    ecrireUrl(null, "");
   }
 
-  async function rechercherJoueur(pseudoRecherche = pseudo, tagRecherche = tag) {
-    if (!pseudoRecherche || !tagRecherche) {
-      setErreur("Renseigne un pseudo et un tag pour lancer la recherche.");
-      return;
-    }
+  /**
+   * Charge un joueur pour un mode donné. /stats d'abord : c'est lui qui déclenche la synchro avec Riot
+   * si les données sont anciennes ; les autres routes lisent ensuite la base à jour, en parallèle.
+   */
+  async function charger(cible, modeCible, { historiqueNavigateur = "pousser", complet = false } = {}) {
+    const numero = ++requeteCourante.current;
+    const autreJoueur = !(
+      joueur &&
+      joueur.pseudo.toLowerCase() === cible.pseudo.toLowerCase() &&
+      joueur.tag.toLowerCase() === cible.tag.toLowerCase()
+    );
+    // Le rang et la date de synchro ne dépendent pas du mode : on ne les recharge que si nécessaire
+    const rechargerProfil = complet || autreJoueur;
+    const joueurPrecedent = joueur;
+    const modePrecedent = mode;
+    const donneesPrecedentes = donnees;
 
-    // On affiche tout de suite le joueur demandé (avec le squelette de chargement) ;
-    // en cas d'erreur, on revient au joueur précédent (ou à l'accueil)
-    const joueurPrecedent = joueurAffiche;
-    setJoueurAffiche({ pseudo: pseudoRecherche, tag: tagRecherche });
+    setErreur(null);
     setChargement(true);
-    setErreur(null);
+    setMode(modeCible);
+    if (autreJoueur) {
+      setJoueur(cible);
+      setDonnees(DONNEES_VIDES);
+      setSynchro({ enCours: true, message: null });
+    }
+    if (historiqueNavigateur !== "aucun") ecrireUrl(cible, modeCible, historiqueNavigateur === "remplacer");
 
-    const suffixeMode = mode ? `&queue_id=${mode}` : "";
-    const suffixeModeHistorique = mode ? `?queue_id=${mode}` : "";
+    const filtre = modeCible ? `queue_id=${modeCible}` : "";
+    const suffixe = filtre && `&${filtre}`;
+    const base = urlJoueur(cible.pseudo, cible.tag);
 
     try {
-      const base = urlJoueur(pseudoRecherche, tagRecherche);
-
-      // /stats d'abord : c'est lui qui déclenche la synchro avec Riot si les données sont anciennes.
-      // Les autres lisent ensuite la base à jour (et le PUUID déjà connu), en parallèle.
-      const dataStats = await lireJson(await fetch(`${base}/stats?limite=15${suffixeMode}`));
-      const [dataHistorique, dataRangs, dataMaj, dataChampions] = await Promise.all([
-        fetch(`${base}/historique${suffixeModeHistorique}`).then(lireJson),
-        fetch(`${base}/rang`).then(lireJson),
-        fetch(`${base}/maj`).then(lireJson),
-        fetch(`${base}/champions${suffixeModeHistorique}`).then(lireJson),
+      const stats = await lireJson(await fetch(`${base}/stats?limite=15${suffixe}`));
+      const [historique, champions, rangs, maj] = await Promise.all([
+        fetch(`${base}/historique?limite=20${suffixe}`).then(lireJson),
+        fetch(`${base}/champions${filtre && `?${filtre}`}`).then(lireJson),
+        rechargerProfil ? fetch(`${base}/rang`).then(lireJson) : null,
+        rechargerProfil ? fetch(`${base}/maj`).then(lireJson) : null,
       ]);
+      if (numero !== requeteCourante.current) return; // une recherche plus récente a pris la main
 
-      setStats(dataStats);
-      setHistorique(dataHistorique.historique);
-      setRangs(dataRangs);
-      setChampions(dataChampions.champions);
-      setDerniereMaj(dataMaj.derniere_maj);
+      setDonnees((precedentes) => ({
+        stats,
+        historique: historique.historique,
+        champions: champions.champions,
+        rangs: rangs ?? precedentes.rangs,
+        derniereMaj: maj ? maj.derniere_maj : precedentes.derniereMaj,
+        // Icône et niveau : absents si l'API n'est pas à jour ou si le joueur n'a encore aucune partie en base
+        profil: maj ? { icone: maj.icone_profil ?? null, niveau: maj.niveau ?? null } : precedentes.profil,
+      }));
       // Pseudo officiel stocké en base (bonne casse) si on l'a, sinon ce qui a été tapé
-      const premierMatch = dataHistorique.historique[0];
-      setJoueurAffiche(
-        premierMatch
-          ? { pseudo: premierMatch.pseudo, tag: premierMatch.tag }
-          : { pseudo: pseudoRecherche, tag: tagRecherche }
-      );
+      const premier = historique.historique[0];
+      const officiel = premier ? { pseudo: premier.pseudo, tag: premier.tag } : cible;
+      setJoueur(officiel);
+      if (autreJoueur || complet) {
+        setRecents(memoriserRecent({ ...officiel, icone: maj?.icone_profil ?? null }));
+        ecrireUrl(officiel, modeCible, true);
+      }
     } catch (err) {
-      setJoueurAffiche(joueurPrecedent);
-      setErreur(err.message);
+      if (numero !== requeteCourante.current) return;
+      setErreur({ texte: messageErreur(err, cible), cible, modeCible });
+      setMode(modePrecedent);
+      if (autreJoueur) {
+        // On revient au profil affiché avant (ou à l'accueil) plutôt que de laisser un profil vide
+        setJoueur(joueurPrecedent);
+        setDonnees(donneesPrecedentes);
+        ecrireUrl(joueurPrecedent, modePrecedent, true);
+      } else if (donneesPrecedentes.stats === null) {
+        // Lien ouvert directement vers un joueur introuvable : retour à l'accueil avec le message
+        setJoueur(null);
+        ecrireUrl(null, "", true);
+      } else {
+        ecrireUrl(joueurPrecedent, modePrecedent, true);
+      }
     } finally {
-      setChargement(false);
+      if (numero === requeteCourante.current) {
+        setChargement(false);
+        setSynchro((s) => ({ ...s, enCours: false }));
+      }
     }
   }
 
-  function voirJoueur(pseudoCible, tagCible) {
-    setPseudo(pseudoCible);
-    setTag(tagCible);
-    window.scrollTo({ top: 0, behavior: "smooth" });
-    rechercherJoueur(pseudoCible, tagCible);
+  // Le rendu initial et les boutons Précédent / Suivant du navigateur suivent l'URL
+  const chargerDepuisUrl = useEffectEvent(() => {
+    const { joueur: cible, mode: modeUrl } = lireUrl();
+    if (cible) charger(cible, modeUrl in NOMS_MODES ? modeUrl : "", { historiqueNavigateur: "aucun", complet: true });
+    else retourAccueil();
+  });
+  useEffect(() => {
+    const premierChargement = lireUrl().joueur ? setTimeout(chargerDepuisUrl) : null;
+    window.addEventListener("popstate", chargerDepuisUrl);
+    return () => {
+      clearTimeout(premierChargement);
+      window.removeEventListener("popstate", chargerDepuisUrl);
+    };
+  }, []);
+
+  function rechercher(pseudo, tag) {
+    avecTransition(() => {
+      window.scrollTo({ top: 0 });
+      charger({ pseudo, tag }, mode);
+    });
   }
 
-  async function actualiserJoueur() {
-    if (!joueurAffiche) return;
-    setActualisation(true);
+  async function actualiser() {
+    if (!joueur) return;
+    setSynchro({ enCours: true, message: null });
+    setErreur(null);
     try {
-      await lireJson(await fetch(`${urlJoueur(joueurAffiche.pseudo, joueurAffiche.tag)}/matchs?count=15`));
-      await rechercherJoueur(joueurAffiche.pseudo, joueurAffiche.tag);
+      const resultat = await lireJson(await fetch(`${urlJoueur(joueur.pseudo, joueur.tag)}/matchs?count=15`));
+      const nouveaux = resultat.nouveaux;
+      await charger(joueur, mode, { historiqueNavigateur: "aucun", complet: true });
+      setSynchro({
+        enCours: false,
+        message: messageActualisation(nouveaux),
+      });
     } catch (err) {
-      setErreur(err.message);
-    } finally {
-      setActualisation(false);
+      setErreur({ texte: messageErreur(err, joueur), cible: joueur, modeCible: mode });
+      setSynchro({ enCours: false, message: null });
     }
   }
 
-  const propsRecherche = {
-    pseudo,
-    tag,
-    mode,
-    onPseudo: setPseudo,
-    onTag: setTag,
-    onMode: setMode,
-    onRechercher: () => rechercherJoueur(),
-    chargement,
-  };
+  const blocErreur = erreur && (
+    <div className="bandeau-erreur" role="alert">
+      <p>{erreur.texte}</p>
+      <div className="bandeau-erreur-actions">
+        <button className="bouton-secondaire" onClick={() => charger(erreur.cible, erreur.modeCible)}>
+          Réessayer
+        </button>
+        <button className="bouton-icone" aria-label="Fermer le message" onClick={() => setErreur(null)}>
+          <IconeFermer />
+        </button>
+      </div>
+    </div>
+  );
+
+  const nouveauJoueurEnChargement = chargement && !donnees.stats;
 
   return (
     <div className="page">
-      <nav className="navbar">
-        <div className="logo" onClick={retourAccueil}>
-          <svg className="logo-icone" viewBox="0 0 48 48" aria-hidden="true">
-            <path d="M24 3 L43 12 V26 C43 36 35 43 24 46 C13 43 5 36 5 26 V12 Z" fill="none" stroke="currentColor" strokeWidth="2.5" />
-            <path d="M24 13 L26.5 21.5 L35 22 L28 27.5 L30 36 L24 31 L18 36 L20 27.5 L13 22 L21.5 21.5 Z" fill="currentColor" />
-          </svg>
-          <span className="logo-texte">Riot<b>Stats</b></span>
-        </div>
-        {joueurAffiche && <SearchBar variante="navbar" {...propsRecherche} />}
+      <a className="lien-evitement" href="#contenu">
+        Aller au contenu
+      </a>
+      <nav className="navbar" aria-label="Navigation principale">
+        <button className="logo" onClick={() => avecTransition(retourAccueil)} aria-label="Riot Stats, retour à l'accueil">
+          <Ecusson className="logo-icone" />
+          <span className="logo-texte" aria-hidden="true">
+            Riot<b>Stats</b>
+          </span>
+        </button>
+        {joueur && <SearchBar variante="navbar" dd={dd} onRechercher={rechercher} chargement={chargement} />}
       </nav>
 
-      {!joueurAffiche && (
-        <div className="accueil">
-          <div className="accueil-fond" aria-hidden="true" />
-          <span className="eyebrow">Suivi de statistiques</span>
-          <h1 className="titre">RIOT STATS</h1>
-          <p className="sous-titre">Rang, winrate, KDA et historique de parties, en un coup d'œil.</p>
-          <SearchBar variante="accueil" {...propsRecherche} />
-          {erreur && <p className="erreur">{erreur}</p>}
-        </div>
+      {!joueur && (
+        <main id="contenu" className="accueil">
+          <div className="accueil-cadre cadre">
+            <Ecusson className="accueil-ecusson" />
+            <h1 className="titre">Riot Stats</h1>
+            <p className="sous-titre">Ton rang, ta dernière session et chaque partie en détail, à partir de ton Riot&nbsp;ID.</p>
+            <SearchBar variante="accueil" dd={dd} onRechercher={rechercher} chargement={chargement} />
+            {blocErreur}
+            {recents.length > 0 && (
+              <div className="recents">
+                <h2 className="recents-titre">Consultés récemment</h2>
+                <ul>
+                  {recents.map((r) => (
+                    <li key={`${r.pseudo}#${r.tag}`}>
+                      <button className="puce-recent" onClick={() => rechercher(r.pseudo, r.tag)}>
+                        <Avatar dd={dd} icone={r.icone ?? null} taille="mini" />
+                        <span>
+                          {r.pseudo}
+                          <span className="suggestion-tag">#{r.tag}</span>
+                        </span>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </div>
+        </main>
       )}
 
-      {joueurAffiche && (
-        <div className="contenu-dashboard">
-          <div className="entete-joueur">
-            <h1 className="titre-joueur">
-              {joueurAffiche.pseudo}<span className="tag-joueur">#{joueurAffiche.tag}</span>
-            </h1>
-            <div className="bloc-maj">
-              <span className="info-maj">Mis à jour {formatDerniereMaj(derniereMaj)}</span>
-              <button className="bouton-actualiser" onClick={actualiserJoueur} disabled={actualisation}>
-                <span className={`icone-refresh ${actualisation ? "tourne" : ""}`}>↻</span>
-                {actualisation ? "Actualisation..." : "Actualiser"}
-              </button>
-            </div>
-          </div>
+      {joueur && (
+        <main id="contenu" className="dashboard">
+          {blocErreur}
 
-          {erreur && <p className="erreur">{erreur}</p>}
+          <ProfileBanner
+            joueur={joueur}
+            rangs={donnees.rangs}
+            historique={donnees.historique}
+            mode={mode}
+            dd={dd}
+            derniereMaj={donnees.derniereMaj}
+            profil={donnees.profil}
+            synchro={synchro}
+            onActualiser={actualiser}
+          />
 
-          {chargement ? (
-            <div className="grille-squelette">
-              <div className="squelette squelette-colonne" />
-              <div className="squelette squelette-liste" />
+          <ModeFilter mode={mode} onMode={(m) => charger(joueur, m)} chargement={chargement} />
+
+          {nouveauJoueurEnChargement ? (
+            <div className="grille-dashboard" aria-busy="true">
+              <div className="squelette squelette-historique" />
+              <div className="colonne-laterale">
+                <div className="squelette squelette-panneau" />
+                <div className="squelette squelette-panneau" />
+              </div>
             </div>
           ) : (
-            <div className="dashboard">
-              <div className="colonne-gauche">
-                {rangs && <RankCard rangs={rangs} />}
-                {stats && <StatsCard stats={stats} dd={dd} />}
-                {champions && <ChampionStats champions={champions} dd={dd} />}
+            donnees.stats && (
+              <div className={`grille-dashboard ${chargement ? "rafraichit" : ""}`} aria-busy={chargement}>
+                <MatchList
+                  key={`${joueur.pseudo}#${joueur.tag}`}
+                  historique={donnees.historique}
+                  dd={dd}
+                  mode={mode}
+                  onSelectJoueur={rechercher}
+                  onVoirTousLesModes={() => charger(joueur, "")}
+                />
+                {donnees.stats.nb_parties !== 0 && (
+                  <aside className="colonne-laterale" aria-label="Statistiques">
+                    <StatsCard stats={donnees.stats} dd={dd} />
+                    <ChampionStats champions={donnees.champions} dd={dd} />
+                  </aside>
+                )}
               </div>
-
-              {historique && historique.length > 0 && (
-                <MatchList historique={historique} dd={dd} onSelectJoueur={voirJoueur} />
-              )}
-            </div>
+            )
           )}
-        </div>
+        </main>
       )}
 
       <footer className="pied-de-page">

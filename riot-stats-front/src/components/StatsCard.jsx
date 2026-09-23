@@ -1,61 +1,56 @@
-import { Cell, Pie, PieChart, ResponsiveContainer } from "recharts";
 import { urlIconeChampion } from "../ddragon";
+import { classeRatio } from "../format";
+import Compteur from "./Compteur";
 
+/** Tendance sur les N dernières parties du mode choisi. */
 export default function StatsCard({ stats, dd }) {
-  if (stats.nb_parties === 0) {
-    return (
-      <div className="carte carte-stats">
-        <p className="info">{stats.message}</p>
-      </div>
-    );
-  }
+  if (!stats || stats.nb_parties === 0) return null;
 
-  const donneesGraphique = [
-    { name: "Victoires", value: stats.victoires },
-    { name: "Défaites", value: stats.defaites },
-  ];
+  const { kills, deaths, assists } = stats.kda_moyen;
+  const ratio = deaths === 0 ? null : (kills + assists) / deaths;
+  const partVictoires = (stats.victoires / (stats.victoires + stats.defaites)) * 100;
 
   return (
-    <div className="carte carte-stats">
-      <h2>Statistiques ({stats.nb_parties_analysees} dernières parties)</h2>
-      <div className="graphique-container">
-        <ResponsiveContainer width="100%" height={160}>
-          <PieChart>
-            <Pie
-              data={donneesGraphique}
-              dataKey="value"
-              innerRadius={45}
-              outerRadius={70}
-              startAngle={90}
-              endAngle={-270}
-              isAnimationActive={false}
-              stroke="none"
-            >
-              <Cell fill="var(--victoire)" />
-              <Cell fill="var(--defaite)" />
-            </Pie>
-          </PieChart>
-        </ResponsiveContainer>
-        <div className="winrate-central">
-          <span className={stats.winrate >= 50 ? "positif" : "negatif"}>{stats.winrate}%</span>
-          <span className="winrate-label">winrate</span>
-        </div>
+    <section className="panneau panneau-stats" aria-labelledby="titre-stats">
+      <h2 id="titre-stats">
+        Tendance <span className="titre-precision">{stats.nb_parties_analysees} dernières parties</span>
+      </h2>
+
+      <div className="stats-winrate">
+        <span className={`stats-winrate-valeur ${stats.winrate >= 50 ? "positif" : "negatif"}`}>
+          <Compteur valeur={stats.winrate} decimales={Number.isInteger(stats.winrate) ? 0 : 1} /> %
+        </span>
+        <span className="stats-winrate-detail">
+          {stats.victoires}V {stats.defaites}D
+        </span>
       </div>
-      <div className="ligne-stat"><span className="label">Victoires</span><span className="positif">{stats.victoires}</span></div>
-      <div className="ligne-stat"><span className="label">Défaites</span><span className="negatif">{stats.defaites}</span></div>
-      <div className="ligne-stat">
-        <span className="label">KDA moyen</span>
-        <span>{stats.kda_moyen.kills} / {stats.kda_moyen.deaths} / {stats.kda_moyen.assists}</span>
+      <div
+        className="barre-victoires"
+        role="img"
+        aria-label={`${stats.victoires} victoires, ${stats.defaites} défaites`}
+      >
+        <span style={{ "--part": partVictoires / 100 }} />
       </div>
-      {stats.champion_favori && (
-        <div className="ligne-stat ligne-champion-favori">
-          <span className="label">Champion favori</span>
-          <span className="champion-favori-valeur">
-            <img className="icone-champion-mini" src={urlIconeChampion(dd, stats.champion_favori.nom)} alt="" />
-            {stats.champion_favori.nom} ({stats.champion_favori.parties_jouees})
-          </span>
+
+      <dl className="stats-lignes">
+        <div>
+          <dt>KDA moyen</dt>
+          <dd>
+            {kills} / {deaths} / {assists}
+            <span className={`stats-ratio ${classeRatio(ratio)}`}>{ratio === null ? "Parfait" : ratio.toFixed(2)}</span>
+          </dd>
         </div>
-      )}
-    </div>
+        {stats.champion_favori && (
+          <div>
+            <dt>Le plus joué</dt>
+            <dd className="stats-favori">
+              <img src={urlIconeChampion(dd, stats.champion_favori.nom)} alt="" />
+              {stats.champion_favori.nom}
+              <span className="stats-favori-parties">{stats.champion_favori.parties_jouees} parties</span>
+            </dd>
+          </div>
+        )}
+      </dl>
+    </section>
   );
 }
