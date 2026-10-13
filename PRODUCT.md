@@ -25,7 +25,7 @@ C'est un projet personnel vitrine, pas un concurrent d'op.gg, u.gg ou League of 
 - Parcours : accueil avec recherche par Riot ID (autocomplétion sur les joueurs déjà consultés), filtre par mode de jeu, puis tableau de bord du joueur ; bouton « Actualiser » et mention « Mis à jour … ».
 - Données : sync avec Riot seulement si les données ont plus de 10 min ; région `europe` codée en dur, plateformes (`euw1`, `na1`…) en liste blanche.
 - Icônes de champions, sorts, runes et items via Data Dragon.
-- Déploiement : API (Docker) et PostgreSQL sur Render, front sur Vercel. La clé Riot de développement expire toutes les 24 h, donc la démo peut tomber en erreur 401/403.
+- Déploiement : API (Docker) et PostgreSQL sur Render, front sur Vercel. La démo utilise une Personal API Key Riot, qui n'expire pas. L'API gratuite se met en veille après 15 min sans visite (premier chargement d'environ 50 s).
 
 ## Capabilities and Constraints
 
@@ -47,7 +47,7 @@ C'est un projet personnel vitrine, pas un concurrent d'op.gg, u.gg ou League of 
 
 - README avec fonctionnalités, schéma d'architecture et choix techniques chiffrés (`README.md`).
 - Suite de tests pytest et CI GitHub Actions.
-- Pas encore d'URL de démo publique ni de capture d'écran (`docs/apercu.png` prévu mais absent). Aucun utilisateur, témoignage ou chiffre d'usage : ne pas en inventer.
+- Démo publique : https://api-d-agr-gation-league-of-legends.vercel.app (API : https://riot-stats-api.onrender.com/docs). Pas encore de capture d'écran (`docs/apercu.png` prévu mais absent). Aucun utilisateur, témoignage ou chiffre d'usage : ne pas en inventer.
 
 ## Product Principles
 

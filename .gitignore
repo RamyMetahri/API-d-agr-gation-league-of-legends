@@ -14,3 +14,11 @@ dist/
 # Outils
 graphify-out/
 .claude/settings.local.json
+
+# Documents de travail
+Riot_Stats_ameliorations.docx
+
+# Fichiers d'outils (Claude Code, Impeccable)
+.claude/agents/
+.claude/skills/
+.impeccable/critique/

@@ -4,7 +4,10 @@ Tableau de bord League of Legends : rang, winrate, KDA, historique de parties et
 
 L'API agrège les données de l'API officielle Riot Games et les met en cache dans PostgreSQL pour rester rapide et économe en appels.
 
-<!-- Démo : https://ton-site.vercel.app -->
+**Démo : [api-d-agr-gation-league-of-legends.vercel.app](https://api-d-agr-gation-league-of-legends.vercel.app)** · [Documentation interactive de l'API](https://riot-stats-api.onrender.com/docs)
+
+> L'API est hébergée sur l'offre gratuite de Render et se met en veille après 15 min sans visite : la première recherche peut prendre une cinquantaine de secondes, les suivantes sont instantanées.
+
 <!-- Capture d'écran : ajoute docs/apercu.png puis décommente la ligne suivante -->
 <!-- ![Aperçu](docs/apercu.png) -->
 
@@ -41,7 +44,7 @@ flowchart LR
   - La plateforme (`euw1`, `na1`…) est validée par liste blanche : elle sert à construire l'URL appelée avec la clé.
   - Un limiteur de requêtes par IP protège le quota.
   - Le CORS est configurable.
-- **Tests.** 31 tests pytest sans réseau ni base, où Riot et PostgreSQL sont remplacés par des faux. La CI GitHub Actions lance les tests, le lint et le build du front, et construit l'image Docker.
+- **Tests.** 33 tests pytest sans réseau ni base, où Riot et PostgreSQL sont remplacés par des faux. La CI GitHub Actions lance les tests, le lint et le build du front, et construit l'image Docker.
 
 ## Lancer en local
 
@@ -88,12 +91,13 @@ cd riot-stats-front && npm run lint && npm run build
 1. **API + base (Render).**
    - Dans Render, choisir *New > Blueprint* puis ce dépôt. [`render.yaml`](render.yaml) crée l'API Docker et la base PostgreSQL.
    - Renseigner `RIOT_API_KEY` et `CORS_ORIGINS` (l'URL du front).
+   - API en ligne : [riot-stats-api.onrender.com/docs](https://riot-stats-api.onrender.com/docs).
 2. **Front (Vercel).**
    - Importer le dépôt avec `riot-stats-front` comme *Root Directory*.
    - Ajouter la variable `VITE_API_URL` (l'URL de l'API Render).
-3. **Clé Riot.** La clé de développement expire toutes les 24 h. Pour une démo en ligne, il faut demander une *Personal API Key* sur le portail Riot.
+3. **Clé Riot.** La démo utilise une *Personal API Key*, qui n'expire pas. La clé de développement, elle, expire toutes les 24 h : elle suffit en local, pas pour une démo en ligne.
 
-> La base PostgreSQL gratuite de Render expire au bout de 30 jours. [Neon](https://neon.tech) est une alternative gratuite : il suffit de changer `DATABASE_URL`.
+> L'offre gratuite de Render a deux limites : l'API se met en veille après 15 min d'inactivité, et la base PostgreSQL gratuite expire au bout de 30 jours. [Neon](https://neon.tech) est une alternative gratuite : il suffit de changer `DATABASE_URL`.
 
 ---
 

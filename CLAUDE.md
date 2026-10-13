@@ -56,7 +56,7 @@ docker compose up --build
 
 ## CI et déploiement
 - `.github/workflows/ci.yml` : pytest (API), lint + build (front), `docker build` de l'API.
-- `render.yaml` déploie l'API (Docker) et PostgreSQL sur Render ; le front va sur Vercel (`VITE_API_URL`). La clé Riot de développement expire toutes les 24 h.
+- `render.yaml` déploie l'API (Docker) et PostgreSQL sur Render ; le front va sur Vercel (`VITE_API_URL`). En ligne : front `https://api-d-agr-gation-league-of-legends.vercel.app`, API `https://riot-stats-api.onrender.com`. La démo utilise une Personal API Key Riot (permanente) ; la clé de développement, en local, expire toutes les 24 h.
 - `.gitattributes` force les fins de ligne LF.
 
 Ne pas ajouter de ligne Co-Authored-By aux commits
