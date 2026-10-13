@@ -1,3 +1,5 @@
+import threading
+
 import httpx
 import pytest
 
@@ -71,6 +73,25 @@ def test_rafraichir_ne_telecharge_que_les_nouveaux_matchs(monkeypatch, base_fact
     assert resultat["nouveaux"] == 1
     assert base_factice[0]["match_id"] == "EUW1_2"
     assert base_factice[0]["neutral_minions_killed"] == 10  # CS de jungle bien transmis
+
+
+def test_rafraichir_telecharge_les_matchs_en_parallele(monkeypatch, base_factice):
+    match_ids = ["EUW1_1", "EUW1_2", "EUW1_3"]
+    # Chaque téléchargement attend que les 3 soient lancés : en séquentiel, la barrière expire
+    barriere = threading.Barrier(len(match_ids), timeout=2)
+    monkeypatch.setattr(main, "get_match_ids_by_puuid", lambda puuid, count: match_ids)
+    monkeypatch.setattr(main, "matchs_existants", lambda puuid, ids: set())
+
+    def faux_details(match_id):
+        barriere.wait()
+        return fabriquer_match(match_id)
+
+    monkeypatch.setattr(main, "get_match_details", faux_details)
+
+    resultat = main.rafraichir_joueur("puuid-0", count=3)
+
+    assert resultat["nouveaux"] == 3
+    assert [p["match_id"] for p in base_factice] == match_ids  # enregistrés dans l'ordre de Riot
 
 
 def test_rafraichir_enregistre_l_icone_de_profil_du_joueur(monkeypatch, base_factice):

@@ -5,6 +5,7 @@ Doc auto  : http://127.0.0.1:8000/docs
 """
 
 import os
+from concurrent.futures import ThreadPoolExecutor
 from contextlib import asynccontextmanager
 from typing import Literal
 
@@ -69,6 +70,9 @@ app.add_middleware(
 # Limite par IP sur les routes qui peuvent appeler Riot, pour protéger notre quota
 limiteur = LimiteurRequetes(max_requetes=int(os.getenv("RATE_LIMIT_PAR_MINUTE", "60")), fenetre_secondes=60)
 LIMITE = [Depends(limiteur)]
+
+# Matchs téléchargés en même temps chez Riot (quota : 20 requêtes / s)
+TELECHARGEMENTS_PARALLELES = 10
 
 # Liste blanche : la plateforme sert à construire l'URL Riot, on ne laisse pas passer n'importe quoi
 Platform = Literal[
@@ -139,13 +143,16 @@ def rafraichir_joueur(puuid: str, count: int) -> dict:
     """
     match_ids = get_match_ids_by_puuid(puuid, count=count)
     deja_en_base = matchs_existants(puuid, match_ids)
+    # Pas besoin de re-télécharger un match qu'on a déjà
+    a_telecharger = [match_id for match_id in match_ids if match_id not in deja_en_base]
     nouveaux = 0
 
-    for match_id in match_ids:
-        if match_id in deja_en_base:
-            continue  # pas besoin de re-télécharger un match qu'on a déjà
+    # Téléchargements en parallèle : un nouveau joueur attend le match le plus lent,
+    # pas la somme des 15 (le retry sur 429 de appel_riot protège le quota)
+    with ThreadPoolExecutor(max_workers=TELECHARGEMENTS_PARALLELES) as executeur:
+        matchs = list(executeur.map(get_match_details, a_telecharger))
 
-        match_data = get_match_details(match_id)
+    for match_id, match_data in zip(a_telecharger, matchs):
         info = match_data["info"]
 
         participant = next((p for p in info["participants"] if p["puuid"] == puuid), None)
