@@ -11,8 +11,8 @@ services:
     name: riot-stats-api
     runtime: docker
     plan: free
-    dockerContext: ./riot-stats-api
-    dockerfilePath: ./riot-stats-api/Dockerfile
+    dockerContext: ./riot-stats-back
+    dockerfilePath: ./riot-stats-back/Dockerfile
     healthCheckPath: /sante
     envVars:
       - key: DATABASE_URL

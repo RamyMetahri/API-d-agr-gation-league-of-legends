@@ -2,14 +2,14 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-Riot Stats : tableau de bord League of Legends. Monorepo (un seul dépôt git à la racine) avec une API FastAPI (`riot-stats-api/`) et un front React + Vite (`riot-stats-front/`). Code, commentaires, identifiants et messages de commit sont **en français** : garder cette convention.
+Riot Stats : tableau de bord League of Legends. Monorepo (un seul dépôt git à la racine, `riot-stats-api/`) avec une API FastAPI (`riot-stats-back/`) et un front React + Vite (`riot-stats-front/`). Code, commentaires, identifiants et messages de commit sont **en français** : garder cette convention.
 
 ## Commandes
 
-Environnement Windows : le venv Python est dans `riot-stats-api/venv/Scripts/`.
+Environnement Windows : le venv Python est dans `riot-stats-back/venv/Scripts/`.
 
 ```bash
-# API (depuis riot-stats-api/, nécessite .env avec RIOT_API_KEY et DATABASE_URL, PostgreSQL lancé)
+# API (depuis riot-stats-back/, nécessite .env avec RIOT_API_KEY et DATABASE_URL, PostgreSQL lancé)
 venv/Scripts/python -m uvicorn main:app --reload        # http://127.0.0.1:8000, doc sur /docs
 
 # Tests API (sans réseau ni base)
@@ -34,7 +34,7 @@ docker compose up --build
 2. Chaque route résout le joueur via `get_puuid()` (`main.py`) : d'abord en base (insensible à la casse), sinon account-v1 puis enregistrement avec le pseudo officiel Riot.
 3. `rafraichir_joueur()` récupère les IDs des derniers matchs et **ne télécharge que ceux absents** de `matchs_existants()`. Le JSON complet de chaque match est stocké dans `matchs_details` (JSONB) : `/match/{id}` le relit et le passe à `resumer_match()` sans rappeler Riot.
 
-### API (`riot-stats-api/`)
+### API (`riot-stats-back/`)
 - `riot_client.py` : tous les appels Riot passent par `appel_riot()` (client httpx partagé, timeout, retry sur 429 avec `Retry-After`). Région `europe` codée en dur.
 - `main.py` : routes. Les erreurs httpx sont converties par des **gestionnaires globaux** (`@app.exception_handler`), donc pas de try/except dans les routes. Les routes qui peuvent appeler Riot portent `dependencies=LIMITE` (limiteur par IP en mémoire, `rate_limit.py`, valable pour une seule instance).
 - `platform` est un `Literal` en liste blanche : il sert à construire le nom d'hôte de l'URL Riot envoyée avec la clé. Ne jamais accepter une valeur libre.
@@ -43,7 +43,7 @@ docker compose up --build
 - CS = `total_minions_killed + neutral_minions_killed`. Une participation avec `neutral_minions_killed IS NULL` (ligne antérieure à la colonne) est traitée comme absente par `matchs_existants()`, donc re-téléchargée une fois au prochain rafraîchissement.
 - CORS : `CORS_ORIGINS` (liste) + `CORS_ORIGIN_REGEX` (par défaut localhost/127.0.0.1 sur tout port).
 
-### Tests (`riot-stats-api/tests/`)
+### Tests (`riot-stats-back/tests/`)
 - `conftest.py` définit `RIOT_API_KEY` et `DATABASE_URL` **avant** d'importer `main`, car `riot_client` et `database` les exigent à l'import. Le `TestClient` est créé sans `with`, donc le lifespan (et la base) ne sont pas sollicités.
 - `main.py` importe les fonctions par nom : il faut monkeypatcher **`main.<fonction>`**, pas `database.<fonction>` ni `riot_client.<fonction>`.
 - `fabriquer_match()` / `fabriquer_participant()` construisent un match MATCH-V5 minimal ; la fixture `client` réinitialise le limiteur.
@@ -58,3 +58,5 @@ docker compose up --build
 - `.github/workflows/ci.yml` : pytest (API), lint + build (front), `docker build` de l'API.
 - `render.yaml` déploie l'API (Docker) et PostgreSQL sur Render ; le front va sur Vercel (`VITE_API_URL`). La clé Riot de développement expire toutes les 24 h.
 - `.gitattributes` force les fins de ligne LF.
+
+Ne pas ajouter de ligne Co-Authored-By aux commits

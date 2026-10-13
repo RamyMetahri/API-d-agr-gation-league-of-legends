@@ -1,5 +1,5 @@
 # Lance l'API + PostgreSQL en local : docker compose up --build
-# Prérequis : riot-stats-api/.env avec RIOT_API_KEY (voir riot-stats-api/.env.example)
+# Prérequis : riot-stats-back/.env avec RIOT_API_KEY (voir riot-stats-back/.env.example)
 services:
   db:
     image: postgres:16-alpine
@@ -15,8 +15,8 @@ services:
       retries: 10
 
   api:
-    build: ./riot-stats-api
-    env_file: ./riot-stats-api/.env
+    build: ./riot-stats-back
+    env_file: ./riot-stats-back/.env
     environment:
       # Remplace le DATABASE_URL du .env : ici la base est le conteneur "db"
       DATABASE_URL: postgresql://riot:riot@db:5432/riot_stats

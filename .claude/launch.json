@@ -3,8 +3,8 @@
   "configurations": [
     {
       "name": "api",
-      "runtimeExecutable": "riot-stats-api/venv/Scripts/python.exe",
-      "runtimeArgs": ["-m", "uvicorn", "main:app", "--app-dir", "riot-stats-api", "--port", "8000"],
+      "runtimeExecutable": "riot-stats-back/venv/Scripts/python.exe",
+      "runtimeArgs": ["-m", "uvicorn", "main:app", "--app-dir", "riot-stats-back", "--port", "8000"],
       "port": 8000
     },
     {

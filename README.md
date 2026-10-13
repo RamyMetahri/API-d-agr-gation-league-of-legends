@@ -29,7 +29,7 @@ flowchart LR
 
 | Dossier | Contenu |
 |---|---|
-| [`riot-stats-api/`](riot-stats-api) | API FastAPI : `main.py` (routes), `riot_client.py` (appels Riot), `database.py` (PostgreSQL), `match_resume.py` (mise en forme d'un match), `stats_champions.py`, `rate_limit.py` |
+| [`riot-stats-back/`](riot-stats-back) | API FastAPI : `main.py` (routes), `riot_client.py` (appels Riot), `database.py` (PostgreSQL), `match_resume.py` (mise en forme d'un match), `stats_champions.py`, `rate_limit.py` |
 | [`riot-stats-front/`](riot-stats-front) | Front React : `App.jsx` et `src/components/` |
 
 ## Choix techniques
@@ -48,7 +48,7 @@ flowchart LR
 **Prérequis :** une clé sur [developer.riotgames.com](https://developer.riotgames.com).
 
 ```bash
-cp riot-stats-api/.env.example riot-stats-api/.env   # puis renseigner RIOT_API_KEY
+cp riot-stats-back/.env.example riot-stats-back/.env   # puis renseigner RIOT_API_KEY
 ```
 
 ### Avec Docker (API + PostgreSQL)
@@ -60,7 +60,7 @@ docker compose up --build
 ### Sans Docker
 
 ```bash
-cd riot-stats-api
+cd riot-stats-back
 python -m venv venv && source venv/bin/activate     # Windows : venv\Scripts\activate
 pip install -r requirements-dev.txt
 uvicorn main:app --reload                            # PostgreSQL doit tourner (DATABASE_URL)
@@ -79,7 +79,7 @@ npm run dev                                          # http://localhost:5173
 ## Tests
 
 ```bash
-cd riot-stats-api && pytest
+cd riot-stats-back && pytest
 cd riot-stats-front && npm run lint && npm run build
 ```
 
