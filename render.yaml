@@ -1,11 +1,5 @@
-# Blueprint Render : crée l'API (Docker) et la base PostgreSQL en un clic.
+# Blueprint Render : crée l'API (Docker) en un clic. La base PostgreSQL est hébergée sur Neon.
 # Dashboard Render > New > Blueprint > choisir ce dépôt.
-databases:
-  - name: riot-stats-db
-    plan: free
-    databaseName: riot_stats
-    user: riot
-
 services:
   - type: web
     name: riot-stats-api
@@ -16,9 +10,7 @@ services:
     healthCheckPath: /sante
     envVars:
       - key: DATABASE_URL
-        fromDatabase:
-          name: riot-stats-db
-          property: connectionString
+        sync: false # chaîne de connexion Neon (avec -pooler), à saisir dans le dashboard
       - key: RIOT_API_KEY
         sync: false # à saisir dans le dashboard, jamais dans le dépôt
       - key: CORS_ORIGINS

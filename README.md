@@ -88,16 +88,19 @@ cd riot-stats-front && npm run lint && npm run build
 
 ## Déploiement
 
-1. **API + base (Render).**
-   - Dans Render, choisir *New > Blueprint* puis ce dépôt. [`render.yaml`](render.yaml) crée l'API Docker et la base PostgreSQL.
-   - Renseigner `RIOT_API_KEY` et `CORS_ORIGINS` (l'URL du front).
+1. **Base (Neon).**
+   - Créer un projet sur [Neon](https://neon.tech) et copier la chaîne de connexion avec *Connection pooling* activé.
+   - Les tables sont créées automatiquement au démarrage de l'API.
+2. **API (Render).**
+   - Dans Render, choisir *New > Blueprint* puis ce dépôt. [`render.yaml`](render.yaml) crée l'API Docker.
+   - Renseigner `DATABASE_URL` (la chaîne Neon), `RIOT_API_KEY` et `CORS_ORIGINS` (l'URL du front).
    - API en ligne : [riot-stats-api.onrender.com/docs](https://riot-stats-api.onrender.com/docs).
-2. **Front (Vercel).**
+3. **Front (Vercel).**
    - Importer le dépôt avec `riot-stats-front` comme *Root Directory*.
    - Ajouter la variable `VITE_API_URL` (l'URL de l'API Render).
-3. **Clé Riot.** La démo utilise une *Personal API Key*, qui n'expire pas. La clé de développement, elle, expire toutes les 24 h : elle suffit en local, pas pour une démo en ligne.
+4. **Clé Riot.** La démo utilise une *Personal API Key*, qui n'expire pas. La clé de développement, elle, expire toutes les 24 h : elle suffit en local, pas pour une démo en ligne.
 
-> L'offre gratuite de Render a deux limites : l'API se met en veille après 15 min d'inactivité, et la base PostgreSQL gratuite expire au bout de 30 jours. [Neon](https://neon.tech) est une alternative gratuite : il suffit de changer `DATABASE_URL`.
+> Sur l'offre gratuite de Render, l'API se met en veille après 15 min d'inactivité. La base est sur Neon plutôt que Render, dont la base PostgreSQL gratuite expire au bout de 30 jours.
 
 ---
 
